@@ -1,16 +1,57 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useGradientStore } from '@/store/gradient-store';
 
 const PRESETS = [
+  { label: '642 x 642', w: 642, h: 642 },
   { label: '1920 x 1080', w: 1920, h: 1080 },
   { label: '1080 x 1080', w: 1080, h: 1080 },
   { label: '1080 x 1920', w: 1080, h: 1920 },
-  { label: '1200 x 800', w: 1200, h: 800 },
 ] as const;
 
 function clampDim(v: number) {
   return Math.max(100, Math.min(4096, Math.round(v)));
+}
+
+function DimInput({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+}) {
+  const [local, setLocal] = useState(String(value));
+
+  // Sync from store when value changes externally (e.g. preset click)
+  useEffect(() => {
+    setLocal(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const num = parseInt(local, 10);
+    if (!isNaN(num)) {
+      const clamped = clampDim(num);
+      onCommit(clamped);
+      setLocal(String(clamped));
+    } else {
+      setLocal(String(value));
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+      }}
+      className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-blue-500"
+    />
+  );
 }
 
 export function DimensionInputs() {
@@ -24,23 +65,9 @@ export function DimensionInputs() {
         Dimensions
       </label>
       <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min={100}
-          max={4096}
-          value={width}
-          onChange={(e) => setDimensions(clampDim(Number(e.target.value)), height)}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-blue-500"
-        />
+        <DimInput value={width} onCommit={(w) => setDimensions(w, height)} />
         <span className="text-neutral-500 text-sm shrink-0">&times;</span>
-        <input
-          type="number"
-          min={100}
-          max={4096}
-          value={height}
-          onChange={(e) => setDimensions(width, clampDim(Number(e.target.value)))}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-blue-500"
-        />
+        <DimInput value={height} onCommit={(h) => setDimensions(width, h)} />
       </div>
       <div className="flex flex-wrap gap-1">
         {PRESETS.map((p) => (

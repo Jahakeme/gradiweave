@@ -59,6 +59,7 @@ export function ColourPicker({
 }) {
   const updateColour = useGradientStore((s) => s.updateColour);
   const setColourFormat = useGradientStore((s) => s.setColourFormat);
+  const toggleColourLock = useGradientStore((s) => s.toggleColourLock);
   const [hexInput, setHexInput] = useState(colour.hex);
 
   const format = colour.displayFormat;
@@ -90,9 +91,13 @@ export function ColourPicker({
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className="h-9 w-9 rounded-md border border-neutral-600 shadow-sm transition-transform hover:scale-110 focus:ring-2 focus:ring-blue-500 outline-none"
+          className={`h-9 w-9 rounded-md shadow-sm transition-transform hover:scale-110 focus:ring-2 focus:ring-blue-500 outline-none ${
+            colour.locked
+              ? 'ring-2 ring-amber-400 border border-amber-500'
+              : 'border border-neutral-600'
+          }`}
           style={{ backgroundColor: cssColour }}
-          title={colour.hex}
+          title={colour.locked ? `${colour.hex} (locked)` : colour.hex}
         />
       </Popover.Trigger>
       <Popover.Portal>
@@ -172,6 +177,18 @@ export function ColourPicker({
                 Outside sRGB gamut — will be clamped on export
               </p>
             )}
+
+            {/* Lock toggle */}
+            <button
+              onClick={() => toggleColourLock(colour.id)}
+              className={`w-full rounded-md py-1 text-xs transition-colors ${
+                colour.locked
+                  ? 'text-amber-400 bg-amber-400/10 hover:bg-amber-400/20'
+                  : 'text-neutral-400 hover:bg-neutral-800'
+              }`}
+            >
+              {colour.locked ? 'Locked — survives randomise' : 'Lock colour'}
+            </button>
 
             {/* Remove button */}
             {canRemove && (

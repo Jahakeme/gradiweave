@@ -13,8 +13,8 @@ import { generateRandomPalette } from '@/lib/colours/random';
 export const useGradientStore = create<GradientState>((set, get) => ({
   type: 'soft-bezier',
   warpShape: 'flat',
-  width: 1200,
-  height: 800,
+  width: 642,
+  height: 642,
   warp: 0,
   warpSize: 0.5,
   noise: 0,
@@ -46,6 +46,7 @@ export const useGradientStore = create<GradientState>((set, get) => ({
           oklch,
           hex: oklchToHex(oklch),
           displayFormat: 'oklch',
+          locked: false,
         },
       ],
     });
@@ -81,8 +82,21 @@ export const useGradientStore = create<GradientState>((set, get) => ({
     });
   },
 
+  toggleColourLock: (id: string) => {
+    set({
+      colours: get().colours.map((c) =>
+        c.id === id ? { ...c, locked: !c.locked } : c,
+      ),
+    });
+  },
+
   randomiseColours: () => {
-    const count = get().colours.length;
-    set({ colours: generateRandomPalette(count) });
+    const { colours } = get();
+    const newPalette = generateRandomPalette(colours.length);
+    set({
+      colours: colours.map((c, i) =>
+        c.locked ? c : newPalette[i],
+      ),
+    });
   },
 }));

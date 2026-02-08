@@ -42,6 +42,7 @@ export function ImageUploader() {
           oklch: c.oklch,
           hex: c.hex,
           displayFormat: 'oklch' as const,
+          locked: false,
         }));
 
         if (stops.length > 0) {

@@ -16,6 +16,7 @@ function makeColourStop(oklch: OklchColour): ColourStop {
     oklch,
     hex: oklchToHex(oklch),
     displayFormat: 'oklch',
+    locked: false,
   };
 }
 

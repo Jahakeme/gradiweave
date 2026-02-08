@@ -13,6 +13,7 @@ export interface ColourStop {
   hex: string;
   position?: { x: number; y: number };
   displayFormat: 'oklch' | 'hex';
+  locked: boolean;
 }
 
 // --- Gradient Types ---
@@ -149,5 +150,6 @@ export interface GradientState {
   updateColour: (id: string, oklch: OklchColour) => void;
   updateColourPosition: (id: string, position: { x: number; y: number }) => void;
   setColourFormat: (id: string, format: 'oklch' | 'hex') => void;
+  toggleColourLock: (id: string) => void;
   randomiseColours: () => void;
 }
