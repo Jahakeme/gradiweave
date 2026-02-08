@@ -204,7 +204,7 @@ vec3 getGradientColour(float t) {
 // --- Bezier easing ---
 float sharpBezier(float t) {
   float u = 1.0 - t;
-  return u*u*u*0.0 + 3.0*u*u*t*0.1 + 3.0*u*t*t*0.9 + t*t*t*1.0;
+  return u*u*u*0.0 + 3.0*u*u*t*0.05 + 3.0*u*t*t*0.95 + t*t*t*1.0;
 }
 
 float softBezier(float t) {
@@ -232,16 +232,28 @@ vec3 softBezierGradient(vec2 uv) {
 
 vec3 meshStaticGradient(vec2 uv) {
   // Inverse-distance weighted interpolation
-  vec3 weightedSum = vec3(0.0);
+  // Convert OKLCH to Lab-like (L, a, b) for proper averaging, then back
   float totalWeight = 0.0;
+  float sumL = 0.0;
+  float sumA = 0.0;
+  float sumB = 0.0;
   for (int i = 0; i < 12; i++) {
     if (i >= u_colourCount) break;
     float d = distance(uv, u_colourPositions[i]);
-    float w = 1.0 / (d * d + 0.001);
-    weightedSum += u_coloursOklch[i] * w;
+    float w = 1.0 / (pow(d, 2.5) + 0.0001);
+    float hRad = u_coloursOklch[i].z * 3.14159265 / 180.0;
+    sumL += u_coloursOklch[i].x * w;
+    sumA += u_coloursOklch[i].y * cos(hRad) * w;
+    sumB += u_coloursOklch[i].y * sin(hRad) * w;
     totalWeight += w;
   }
-  return weightedSum / totalWeight;
+  sumL /= totalWeight;
+  sumA /= totalWeight;
+  sumB /= totalWeight;
+  float C = sqrt(sumA * sumA + sumB * sumB);
+  float H = atan(sumB, sumA) * 180.0 / 3.14159265;
+  if (H < 0.0) H += 360.0;
+  return vec3(sumL, C, H);
 }
 
 vec3 meshGridGradient(vec2 uv) {
@@ -257,8 +269,9 @@ vec3 meshGridGradient(vec2 uv) {
   int x1 = x0 + 1;
   int y1 = y0 + 1;
 
-  float fx = fract(cellX);
-  float fy = fract(cellY);
+  // Smoothstep for smoother blending between cells
+  float fx = smoothstep(0.0, 1.0, fract(cellX));
+  float fy = smoothstep(0.0, 1.0, fract(cellY));
 
   // Clamp to grid bounds
   x0 = min(x0, cols - 1);
