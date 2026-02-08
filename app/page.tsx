@@ -5,6 +5,7 @@ import { ParameterSliders } from '@/components/Controls/ParameterSliders';
 import { DimensionInputs } from '@/components/Controls/DimensionInputs';
 import { ColourPalette } from '@/components/Controls/ColourPalette';
 import { ExportButton } from '@/components/ExportButton';
+import { ImageUploader } from '@/components/ImageUploader';
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
         <ParameterSliders />
         <DimensionInputs />
         <ColourPalette />
+        <ImageUploader />
         <ExportButton />
       </aside>
     </main>
