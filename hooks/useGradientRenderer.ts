@@ -118,6 +118,7 @@ export function getRenderToBlob() {
 
 export function useGradientRenderer(
   canvasRef: RefObject<HTMLCanvasElement | null>,
+  onError?: (message: string) => void,
 ): { renderToBlob: (density: PixelDensity) => Promise<Blob> } {
   const resourcesRef = useRef<GlResources | null>(null);
   const rafRef = useRef<number>(0);
@@ -132,13 +133,22 @@ export function useGradientRenderer(
       preserveDrawingBuffer: true,
     });
     if (!gl) {
-      console.error('WebGL2 not available');
+      onError?.('Your browser does not support WebGL2, which is required for rendering.');
       return;
     }
 
-    const program = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
-    const vao = setupFullscreenQuad(gl, program);
-    const uniforms = getUniformLocations(gl, program);
+    let program: WebGLProgram;
+    let vao: WebGLVertexArrayObject;
+    let uniforms: UniformLocations;
+
+    try {
+      program = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
+      vao = setupFullscreenQuad(gl, program);
+      uniforms = getUniformLocations(gl, program);
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'Shader compilation failed');
+      return;
+    }
 
     const res: GlResources = { gl, program, vao, uniforms };
     resourcesRef.current = res;
