@@ -110,6 +110,12 @@ function render(res: GlResources) {
   gl.bindVertexArray(null);
 }
 
+// Module-level ref so useExport can access renderToBlob without context
+let _renderToBlob: ((density: PixelDensity) => Promise<Blob>) | null = null;
+export function getRenderToBlob() {
+  return _renderToBlob;
+}
+
 export function useGradientRenderer(
   canvasRef: RefObject<HTMLCanvasElement | null>,
 ): { renderToBlob: (density: PixelDensity) => Promise<Blob> } {
@@ -165,6 +171,7 @@ export function useGradientRenderer(
       gl.deleteProgram(program);
       gl.deleteVertexArray(vao);
       resourcesRef.current = null;
+      _renderToBlob = null;
     };
   }, [canvasRef]);
 
@@ -202,6 +209,9 @@ export function useGradientRenderer(
     },
     [canvasRef],
   );
+
+  // Expose to module-level for useExport
+  _renderToBlob = renderToBlob;
 
   return { renderToBlob };
 }

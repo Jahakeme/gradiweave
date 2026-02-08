@@ -4,6 +4,7 @@ import { WarpShapeSelect } from '@/components/Controls/WarpShapeSelect';
 import { ParameterSliders } from '@/components/Controls/ParameterSliders';
 import { DimensionInputs } from '@/components/Controls/DimensionInputs';
 import { ColourPalette } from '@/components/Controls/ColourPalette';
+import { ExportButton } from '@/components/ExportButton';
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
         <ParameterSliders />
         <DimensionInputs />
         <ColourPalette />
+        <ExportButton />
       </aside>
     </main>
   );
