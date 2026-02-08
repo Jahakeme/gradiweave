@@ -93,6 +93,63 @@ float fbm(vec2 p, int octaves) {
   }
   return value;
 }
+
+// --- Value Noise ---
+float valueNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// --- Worley (Cellular) Noise ---
+float worley(vec2 uv, float scale) {
+  vec2 p = uv * scale;
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  float minDist = 1.0;
+
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 neighbor = vec2(float(x), float(y));
+      vec2 point = hash2(i + neighbor);
+      vec2 diff = neighbor + point - f;
+      minDist = min(minDist, length(diff));
+    }
+  }
+  return minDist;
+}
+
+// --- Voronoi Noise ---
+vec2 voronoi(vec2 uv, float scale) {
+  vec2 p = uv * scale;
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  float minDist = 1.0;
+  vec2 minPoint = vec2(0.0);
+
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 neighbor = vec2(float(x), float(y));
+      vec2 point = hash2(i + neighbor);
+      vec2 diff = neighbor + point - f;
+      float dist = length(diff);
+      if (dist < minDist) {
+        minDist = dist;
+        minPoint = i + neighbor + point;
+      }
+    }
+  }
+  return minPoint;
+}
 `;
 
 const OKLCH_FUNCTIONS = `
@@ -145,43 +202,143 @@ vec3 interpolateOklch(vec3 oklch1, vec3 oklch2, float t) {
 `;
 
 const WARP_FUNCTIONS = `
-// --- Warp dispatcher (Phase 2: only flat implemented) ---
+// --- Individual warp functions ---
+
+// 0: Simplex Noise
+vec2 warpSimplex(vec2 uv, float intensity, float scale) {
+  float n1 = snoise2(uv * scale * 4.0);
+  float n2 = snoise2(uv * scale * 4.0 + vec2(5.2, 1.3));
+  return uv + vec2(n1, n2) * intensity * 0.3;
+}
+
+// 1: FBM Noise
+vec2 warpFBM(vec2 uv, float intensity, float scale) {
+  float n1 = fbm(uv * scale * 4.0, 6);
+  float n2 = fbm(uv * scale * 4.0 + vec2(5.2, 1.3), 6);
+  return uv + vec2(n1, n2) * intensity * 0.3;
+}
+
+// 2: Circular Noise
+vec2 warpCircularNoise(vec2 uv, float intensity, float scale) {
+  vec2 centered = uv - 0.5;
+  float r = length(centered);
+  float theta = atan(centered.y, centered.x);
+
+  float noiseR = snoise2(vec2(r, theta) * scale * 4.0);
+  float noiseT = snoise2(vec2(r, theta) * scale * 4.0 + vec2(10.0, 10.0));
+
+  r += noiseR * intensity * 0.15;
+  theta += noiseT * intensity * 0.5;
+
+  return vec2(cos(theta), sin(theta)) * r + 0.5;
+}
+
+// 3: Value Noise
+vec2 warpValue(vec2 uv, float intensity, float scale) {
+  float n1 = valueNoise(uv * scale * 6.0);
+  float n2 = valueNoise(uv * scale * 6.0 + vec2(43.2, 17.8));
+  return uv + vec2(n1 - 0.5, n2 - 0.5) * intensity * 0.4;
+}
+
+// 4: Worley Noise
+vec2 warpWorley(vec2 uv, float intensity, float scale) {
+  float n1 = worley(uv, scale * 5.0);
+  float n2 = worley(uv + vec2(0.5, 0.5), scale * 5.0);
+  return uv + vec2(n1 - 0.5, n2 - 0.5) * intensity * 0.4;
+}
+
+// 5: Voronoi Noise
+vec2 warpVoronoi(vec2 uv, float intensity, float scale) {
+  vec2 cell = voronoi(uv, scale * 5.0);
+  return uv + (hash2(cell) - 0.5) * intensity * 0.3;
+}
+
+// 6: Domain Warping
+vec2 warpDomain(vec2 uv, float intensity, float scale) {
+  vec2 q = vec2(
+    fbm(uv * scale * 3.0, 4),
+    fbm(uv * scale * 3.0 + vec2(5.2, 1.3), 4)
+  );
+
+  vec2 r = vec2(
+    fbm(uv * scale * 3.0 + 4.0 * q + vec2(1.7, 9.2), 4),
+    fbm(uv * scale * 3.0 + 4.0 * q + vec2(8.3, 2.8), 4)
+  );
+
+  return uv + r * intensity * 0.3;
+}
+
+// 7: Smooth Noise
+vec2 warpSmooth(vec2 uv, float intensity, float scale) {
+  float n1 = snoise2(uv * scale * 2.0);
+  float n2 = snoise2(uv * scale * 2.0 + vec2(100.0, 100.0));
+  return uv + vec2(n1, n2) * intensity * 0.25;
+}
+
+// 8: Gravity
+vec2 warpGravity(vec2 uv, float intensity, float scale) {
+  float noise = fbm(uv * scale * 4.0, 4);
+  float gravityPull = pow(uv.y, 2.0);
+  return uv + vec2(noise * 0.3, noise + gravityPull) * intensity * 0.2;
+}
+
+// 9: Waves
+vec2 warpWaves(vec2 uv, float intensity, float scale) {
+  return uv + vec2(
+    sin(uv.y * scale * 25.0),
+    sin(uv.x * scale * 25.0)
+  ) * intensity * 0.05;
+}
+
+// 10: Circular (radial ripple)
+vec2 warpCircular(vec2 uv, float intensity, float scale) {
+  vec2 centered = uv - 0.5;
+  float dist = length(centered);
+  float ripple = sin(dist * scale * 40.0) * intensity * 0.04;
+  vec2 dir = dist > 0.001 ? normalize(centered) : vec2(0.0);
+  return uv + dir * ripple;
+}
+
+// 11: Oval
+vec2 warpOval(vec2 uv, float intensity, float scale) {
+  vec2 centered = uv - 0.5;
+  float angle = atan(centered.y, centered.x);
+  float dist = length(centered);
+  float ovalFactor = 1.0 + intensity * 0.5 * cos(angle * 2.0 * max(scale * 3.0, 1.0));
+  return vec2(cos(angle), sin(angle)) * dist * ovalFactor + 0.5;
+}
+
+// 12: Rows (horizontal)
+vec2 warpRows(vec2 uv, float intensity, float scale) {
+  return uv + vec2(sin(uv.y * scale * 25.0) * intensity * 0.05, 0.0);
+}
+
+// 13: Columns (vertical)
+vec2 warpColumns(vec2 uv, float intensity, float scale) {
+  return uv + vec2(0.0, sin(uv.x * scale * 25.0) * intensity * 0.05);
+}
+
+// 14: Flat (identity) — handled by early return
+
+// --- Warp dispatcher ---
 vec2 applyWarp(vec2 uv, int warpType, float intensity, float scale) {
-  if (intensity <= 0.0 || warpType == 14) return uv; // flat or zero intensity
+  if (intensity <= 0.0 || warpType == 14) return uv;
 
-  // Simplex noise warp (type 0)
-  if (warpType == 0) {
-    float n1 = snoise2(uv * scale * 4.0);
-    float n2 = snoise2(uv * scale * 4.0 + vec2(5.2, 1.3));
-    return uv + vec2(n1, n2) * intensity * 0.3;
-  }
+  if (warpType == 0)  return warpSimplex(uv, intensity, scale);
+  if (warpType == 1)  return warpFBM(uv, intensity, scale);
+  if (warpType == 2)  return warpCircularNoise(uv, intensity, scale);
+  if (warpType == 3)  return warpValue(uv, intensity, scale);
+  if (warpType == 4)  return warpWorley(uv, intensity, scale);
+  if (warpType == 5)  return warpVoronoi(uv, intensity, scale);
+  if (warpType == 6)  return warpDomain(uv, intensity, scale);
+  if (warpType == 7)  return warpSmooth(uv, intensity, scale);
+  if (warpType == 8)  return warpGravity(uv, intensity, scale);
+  if (warpType == 9)  return warpWaves(uv, intensity, scale);
+  if (warpType == 10) return warpCircular(uv, intensity, scale);
+  if (warpType == 11) return warpOval(uv, intensity, scale);
+  if (warpType == 12) return warpRows(uv, intensity, scale);
+  if (warpType == 13) return warpColumns(uv, intensity, scale);
 
-  // FBM warp (type 1)
-  if (warpType == 1) {
-    float n1 = fbm(uv * scale * 4.0, 6);
-    float n2 = fbm(uv * scale * 4.0 + vec2(5.2, 1.3), 6);
-    return uv + vec2(n1, n2) * intensity * 0.3;
-  }
-
-  // Waves (type 9)
-  if (warpType == 9) {
-    return uv + vec2(
-      sin(uv.y * scale * 6.28 * 4.0),
-      sin(uv.x * scale * 6.28 * 4.0)
-    ) * intensity * 0.05;
-  }
-
-  // Rows (type 12)
-  if (warpType == 12) {
-    return uv + vec2(sin(uv.y * scale * 6.28 * 4.0) * intensity * 0.05, 0.0);
-  }
-
-  // Columns (type 13)
-  if (warpType == 13) {
-    return uv + vec2(0.0, sin(uv.x * scale * 6.28 * 4.0) * intensity * 0.05);
-  }
-
-  // Stub: remaining warps return uv for now
   return uv;
 }
 `;
